@@ -266,6 +266,8 @@ fn mandala_transform_keeps_its_axes_and_menu_offers_axes_only_for_mandala() {
     h.run_steps(3);
     assert!(h.query_by_label("Axes").is_some());
     assert!(h.query_by_label("Rotation").is_some());
+    let width = h.get_by_label(label(SymmetryMode::Mandala)).rect().width();
+    assert!(width < 260.0, "the sliders must not widen the menu: {width}");
     h.get_by_label(label(SymmetryMode::Dual)).click();
     h.run_steps(3);
     h.get_by_label("Set painting symmetry options").click();

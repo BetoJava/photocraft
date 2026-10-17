@@ -55,7 +55,7 @@ impl PaintingSymmetry {
     pub fn inspect(&self) -> Value {
         match self {
             Self::Path(axis) => json!({"mode":"path", "source":axis.source, "segments":axis.segments.len()}),
-            Self::Preset(p) if p.mode == SymmetryMode::Mandala => json!({"mode":p.mode.id(), "center":p.center, "rotation":p.rotation, "axes":p.axes}),
+            Self::Preset(p) if p.has_axes() => json!({"mode":p.mode.id(), "center":p.center, "rotation":p.rotation, "axes":p.axes}),
             Self::Preset(p) => json!({"mode":p.mode.id(), "center":p.center, "rotation":p.rotation}),
         }
     }
@@ -83,9 +83,9 @@ fn set_preset(s: &mut Session, p: &Value) -> Result<Value> {
         Some(v) => v.as_f64().ok_or_else(fail)?,
     };
     let mut preset = PresetSymmetry::new(mode, center, rotation).ok_or_else(fail)?;
-    if mode == SymmetryMode::Mandala {
-        // Re-picking Mandala without a count keeps the document's current one.
-        let current = st.symmetry.as_ref().and_then(PaintingSymmetry::preset).filter(|c| c.mode == SymmetryMode::Mandala).map(|c| c.axes);
+    if preset.has_axes() {
+        // Re-picking Mandala or Radial without a count keeps the document's current one.
+        let current = st.symmetry.as_ref().and_then(PaintingSymmetry::preset).filter(|c| c.mode == mode).map(|c| c.axes);
         let axes = match p.get("axes") {
             None => current.unwrap_or(symmetry::DEFAULT_AXES),
             Some(v) => v.as_u64().and_then(|n| u8::try_from(n).ok()).ok_or_else(fail)?,
@@ -207,7 +207,7 @@ pub fn specs() -> Vec<CommandSpec> {
             label: "Set Painting Symmetry",
             menu: &[],
             shortcut: None,
-            params: r#"{"mode":"vertical|horizontal|dual|diagonal|mandala","center":[x,y]?,"rotation":degrees=0,"axes":2..16=5} — axes: mandala mirror lines (2 × axes copies)"#,
+            params: r#"{"mode":"vertical|horizontal|dual|diagonal|radial|mandala","center":[x,y]?,"rotation":degrees=0,"axes":2..16=5} — axes: mandala mirror lines (2 × axes copies) or radial segments (axes turned copies)"#,
             enabled: |s| s.active().map(|_| ()).ok_or_else(|| "no document open".into()),
             run: set_preset,
             journal: true,

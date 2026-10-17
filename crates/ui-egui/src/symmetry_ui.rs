@@ -50,6 +50,7 @@ fn label(mode: SymmetryMode) -> &'static str {
         SymmetryMode::Dual => tl!("Dual Axis"),
         SymmetryMode::Diagonal => tl!("Diagonal"),
         SymmetryMode::Mandala => tl!("Mandala"),
+        SymmetryMode::Radial => tl!("Radial"),
     }
 }
 fn preset(app: &PhotocraftApp) -> Option<PresetSymmetry> {
@@ -84,21 +85,22 @@ pub fn commit(app: &mut PhotocraftApp) {
         let _ = app.run("paint.setSymmetry", params(t.preview));
     }
 }
-/// `paint.setSymmetry` params that recreate `p` exactly, including the Mandala line count.
+/// `paint.setSymmetry` params that recreate `p` exactly, including the Mandala/Radial count.
 fn params(p: PresetSymmetry) -> serde_json::Value {
     let mut v = json!({"mode":p.mode.id(), "center":p.center, "rotation":p.rotation});
-    if p.mode == SymmetryMode::Mandala {
+    if p.has_axes() {
         v["axes"] = json!(p.axes);
     }
     v
 }
-/// Mandala line count and rotation of the active preset, editable from the symmetry menu.
+/// Mandala line count, Radial segment count and rotation of the active preset, editable from the symmetry menu.
 fn preset_fields(app: &PhotocraftApp, ui: &mut egui::Ui) -> Option<serde_json::Value> {
     let p = preset(app).filter(|_| crate::menus::is_enabled(app, "paint.setSymmetry"))?;
     let mut next = p;
-    if p.mode == SymmetryMode::Mandala {
+    if p.has_axes() {
         let mut axes = f32::from(p.axes);
-        let r = widgets::slider_row(ui, "Axes", &mut axes, f32::from(symmetry::MIN_AXES)..=f32::from(symmetry::MAX_AXES), "", None);
+        let name = if p.mode == SymmetryMode::Radial { "Segments" } else { "Axes" };
+        let r = widgets::slider_row(ui, name, &mut axes, f32::from(symmetry::MIN_AXES)..=f32::from(symmetry::MAX_AXES), "", None);
         if r.changed() {
             // The range keeps the rounded value inside u8 and the accepted line counts.
             next = next.with_axes(axes.round().clamp(f32::from(symmetry::MIN_AXES), f32::from(symmetry::MAX_AXES)) as u8).unwrap_or(next);
@@ -187,6 +189,7 @@ fn mode_button(ui: &mut egui::Ui, mode: SymmetryMode, checked: bool) -> egui::Re
             SymmetryMode::Dual => "symmetry-dual",
             SymmetryMode::Diagonal => "symmetry-diagonal",
             SymmetryMode::Mandala => "symmetry-mandala",
+            SymmetryMode::Radial => "symmetry-radial",
         };
         icons::paint(ui, r, glyph, 14.0, tint);
     }
@@ -198,7 +201,9 @@ pub fn menu(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     let resp = icons::button_with_icon_size(ui, "painting-symmetry", 24.0, 14.0, current.is_some(), tl!("Set painting symmetry options"));
     let resp = crate::brush_picker::named(resp, "Set painting symmetry options");
     egui::Popup::menu(&resp).show(|ui| {
+        // Sliders take the width they are given: cap it so they don't stretch the menu.
         ui.set_min_width(220.0);
+        ui.set_max_width(220.0);
         widgets::menu_scroll(ui, |ui| {
             let mut run = None;
             if ui

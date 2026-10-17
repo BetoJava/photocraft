@@ -29,7 +29,7 @@ fn presets_validate_atomically_and_leave_document_paths_and_history_untouched() 
         Value::Null,
         json!([]),
         json!({}),
-        json!({"mode":"radial"}),
+        json!({"mode":"spiral"}),
         json!({"mode":7}),
         json!({"mode":"dual","center":[1]}),
         json!({"mode":"dual","center":[1,2,3]}),
@@ -44,6 +44,8 @@ fn presets_validate_atomically_and_leave_document_paths_and_history_untouched() 
         json!({"mode":"mandala","axes":5.5}),
         json!({"mode":"mandala","axes":"5"}),
         json!({"mode":"mandala","axes":256}),
+        json!({"mode":"radial","axes":1}),
+        json!({"mode":"radial","axes":"6"}),
     ] {
         assert!(s.execute("paint.setSymmetry", bad).is_err());
         assert_eq!(s.active().unwrap().symmetry, original);
@@ -214,4 +216,21 @@ fn mandala_axes_round_trip_through_params_and_inspect_and_paint_every_copy() {
     for q in std::iter::once(original).chain(copies.into_iter().map(|c| c[0])) {
         assert!(pixel(&s, q.x.round() as i32, q.y.round() as i32)[0] < 0.5, "missing copy at {q:?}");
     }
+}
+
+#[test]
+fn radial_segments_round_trip_and_paint_turned_copies_only() {
+    let mut s = session(8, "rgb");
+    s.execute("paint.setSymmetry", json!({"mode":"radial","axes":6,"center":[40,30]})).unwrap();
+    let info = crate::inspect::document(s.active().unwrap())["symmetry"].clone();
+    assert_eq!((info["mode"].as_str(), info["axes"].as_u64()), (Some("radial"), Some(6)));
+    s.execute("paint.setSymmetry", json!({"mode":"radial","rotation":10,"center":[40,30]})).unwrap();
+    assert_eq!(s.active().unwrap().symmetry.as_ref().unwrap().preset().unwrap().axes, 6, "omitting axes keeps the current count");
+    s.execute("paint.setSymmetry", json!({"mode":"radial","axes":4,"center":[40,30]})).unwrap();
+    // A dab right of the centre lands on the 4 compass points; mirrored diagonals stay empty.
+    s.execute("paint.stroke", json!({"points":[[55,30]],"size":3,"hardness":1.0,"color":"#000000"})).unwrap();
+    for (x, y) in [(55, 30), (40, 45), (25, 30), (40, 15)] {
+        assert!(pixel(&s, x, y)[0] < 0.5, "missing copy at {x},{y}");
+    }
+    assert!(pixel(&s, 51, 41)[0] > 0.9);
 }
