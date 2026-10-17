@@ -38,6 +38,12 @@ fn presets_validate_atomically_and_leave_document_paths_and_history_untouched() 
         json!({"mode":"dual","center":[1e8,0]}),
         json!({"mode":"dual","rotation":"x"}),
         json!({"mode":"dual","rotation":null}),
+        json!({"mode":"mandala","axes":1}),
+        json!({"mode":"mandala","axes":17}),
+        json!({"mode":"mandala","axes":-5}),
+        json!({"mode":"mandala","axes":5.5}),
+        json!({"mode":"mandala","axes":"5"}),
+        json!({"mode":"mandala","axes":256}),
     ] {
         assert!(s.execute("paint.setSymmetry", bad).is_err());
         assert_eq!(s.active().unwrap().symmetry, original);
@@ -184,5 +190,28 @@ fn streaming_across_dual_axes_keeps_one_opacity_and_matches_commit() {
                 assert!((0..4).all(|i| (a[i] - b[i]).abs() < 0.02), "preview differs at {x},{y}");
             }
         }
+    }
+}
+
+#[test]
+fn mandala_axes_round_trip_through_params_and_inspect_and_paint_every_copy() {
+    let mut s = session(8, "rgb");
+    s.execute("paint.setSymmetry", json!({"mode":"mandala","axes":5,"rotation":12,"center":[40,30]})).unwrap();
+    let info = crate::inspect::document(s.active().unwrap())["symmetry"].clone();
+    assert_eq!((info["mode"].as_str(), info["axes"].as_u64(), info["rotation"].as_f64()), (Some("mandala"), Some(5), Some(12.0)));
+    s.execute("paint.setSymmetry", json!({"mode":"mandala","rotation":30,"center":[40,30]})).unwrap();
+    assert_eq!(s.active().unwrap().symmetry.as_ref().unwrap().preset().unwrap().axes, 5, "omitting axes keeps the current count");
+    s.execute("paint.setSymmetry", json!({"mode":"vertical"})).unwrap();
+    assert!(crate::inspect::document(s.active().unwrap())["symmetry"].get("axes").is_none());
+    s.execute("paint.setSymmetry", json!({"mode":"mandala","center":[40,30]})).unwrap();
+    assert_eq!(s.active().unwrap().symmetry.as_ref().unwrap().preset().unwrap().axes, symmetry::DEFAULT_AXES);
+    s.execute("paint.setSymmetry", json!({"mode":"mandala","axes":7,"center":[40,30],"rotation":20})).unwrap();
+    s.execute("paint.stroke", json!({"points":[[52,30]],"size":3,"hardness":1.0,"color":"#000000"})).unwrap();
+    let p = s.active().unwrap().symmetry.as_ref().unwrap().preset().unwrap();
+    let original = StrokePoint::new(52.0, 30.0, 1.0);
+    let copies = p.reflected_passes(&[original]);
+    assert_eq!(copies.len(), 13);
+    for q in std::iter::once(original).chain(copies.into_iter().map(|c| c[0])) {
+        assert!(pixel(&s, q.x.round() as i32, q.y.round() as i32)[0] < 0.5, "missing copy at {q:?}");
     }
 }
