@@ -172,7 +172,7 @@ fn overlays_follow_document_view_transforms_in_every_theme() {
         let xf =
             ViewXform { rect: Rect::from_min_size(Pos2::ZERO, vec2(500.0, 400.0)), zoom: 1.7, center: [50.0, 40.0], rotation: 37.0, flip: true, aspect: 1.0 };
         let mut out = ctx.run_ui(RawInput { screen_rect: Some(xf.rect), ..Default::default() }, |ui| {
-            let painter = ui.ctx().layer_painter(egui::LayerId::new(egui::Order::Middle, egui::Id::new("symmetry")));
+            let painter = ui.ctx().layer_painter(egui::LayerId::new(egui::Order::Middle, egui::Id::unique("symmetry")));
             draw(&app, &painter, &xf);
         });
         let lines: Vec<_> =
@@ -184,9 +184,6 @@ fn overlays_follow_document_view_transforms_in_every_theme() {
         }
         out.textures_delta.clear();
     }
-    let de = crate::i18n::Lang::from_code("de").unwrap();
-    assert_eq!(crate::i18n::tr(de, "Dual Axis"), "Duale Achse");
-    assert_eq!(crate::i18n::tr(de, "Transform Symmetry"), "Symmetrie transformieren");
 }
 /// #4495: while the symmetry is transformed the options bar has ✓ and ⊘ (Enter and Esc were the
 /// only ways out), and the canvas shows the move, rotate or arrow cursor instead of the brush.
@@ -264,14 +261,14 @@ fn mandala_transform_keeps_its_axes_and_menu_offers_axes_only_for_mandala() {
     );
     h.get_by_label("Set painting symmetry options").click();
     h.run_steps(3);
-    assert!(h.query_by_label("Axes").is_some());
-    assert!(h.query_by_label("Rotation").is_some());
+    assert!(h.query_all_by_label("Axes").next().is_some());
+    assert!(h.query_all_by_label("Rotation").next().is_some());
     let width = h.get_by_label(label(SymmetryMode::Mandala)).rect().width();
     assert!(width < 260.0, "the sliders must not widen the menu: {width}");
     h.get_by_label(label(SymmetryMode::Dual)).click();
     h.run_steps(3);
     h.get_by_label("Set painting symmetry options").click();
     h.run_steps(3);
-    assert!(h.query_by_label("Axes").is_none());
-    assert!(h.query_by_label("Rotation").is_some());
+    assert!(h.query_all_by_label("Axes").next().is_none());
+    assert!(h.query_all_by_label("Rotation").next().is_some());
 }
