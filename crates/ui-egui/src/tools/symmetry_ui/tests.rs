@@ -239,7 +239,7 @@ fn transform_has_commit_and_cancel_buttons_and_its_own_cursors() {
     assert_eq!((done.center, done.rotation), ([120.0, 90.0], 30.0), "commit applies the preview");
 }
 #[test]
-fn mandala_transform_keeps_its_axes_and_menu_offers_axes_only_for_mandala() {
+fn mandala_transform_keeps_its_axes_and_menu_offers_segment_count_only_for_counted_modes() {
     let mut app = app();
     app.run("paint.setSymmetry", json!({"mode":"mandala","axes":7})).unwrap();
     begin(&mut app).unwrap();
@@ -261,7 +261,7 @@ fn mandala_transform_keeps_its_axes_and_menu_offers_axes_only_for_mandala() {
     );
     h.get_by_label("Set painting symmetry options").click();
     h.run_steps(3);
-    assert!(h.query_all_by_label("Axes").next().is_some());
+    assert!(h.query_all_by_label("Segment Count").next().is_some());
     assert!(h.query_all_by_label("Rotation").next().is_some());
     let width = h.get_by_label(label(SymmetryMode::Mandala)).rect().width();
     assert!(width < 260.0, "the sliders must not widen the menu: {width}");
@@ -269,6 +269,6 @@ fn mandala_transform_keeps_its_axes_and_menu_offers_axes_only_for_mandala() {
     h.run_steps(3);
     h.get_by_label("Set painting symmetry options").click();
     h.run_steps(3);
-    assert!(h.query_all_by_label("Axes").next().is_none());
+    assert!(h.query_all_by_label("Segment Count").next().is_none());
     assert!(h.query_all_by_label("Rotation").next().is_some());
 }

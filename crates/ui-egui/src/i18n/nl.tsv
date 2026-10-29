@@ -3696,8 +3696,7 @@ cameraRaw	Whites	Witten
 # Painting symmetry presets.
 	Dual Axis	Dubbele as
 	Mandala	Mandala
-	Segments	Segmenten
-	Axes	Assen
+	Segment Count	Aantal segmenten
 	Diagonal	Diagonaal
 	Transform Symmetry	Symmetrie transformeren
 

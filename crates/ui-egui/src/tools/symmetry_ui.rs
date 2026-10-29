@@ -100,8 +100,8 @@ fn preset_fields(app: &PhotocraftApp, ui: &mut egui::Ui) -> Option<serde_json::V
     if let Some(range) = p.mode.axes_range() {
         let (min, max) = (f32::from(*range.start()), f32::from(*range.end()));
         let mut axes = f32::from(p.axes);
-        let name = if p.mode == SymmetryMode::Radial { "Segments" } else { "Axes" };
-        if widgets::slider_row(ui, name, &mut axes, min..=max, "", None).changed() {
+        // Photoshop names both counts "Segment Count".
+        if widgets::slider_row(ui, "Segment Count", &mut axes, min..=max, "", None).changed() {
             // The range keeps the rounded value inside u8 and the mode's accepted counts.
             next = next.with_axes(axes.round().clamp(min, max) as u8).unwrap_or(next);
         }

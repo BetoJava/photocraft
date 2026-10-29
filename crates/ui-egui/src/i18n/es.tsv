@@ -2570,8 +2570,7 @@ fontWeight	Italic	Cursiva
 # Painting symmetry presets.
 	Dual Axis	Doble eje
 	Mandala	Mandala
-	Segments	Segmentos
-	Axes	Ejes
+	Segment Count	Número de segmentos
 	Diagonal	Diagonal
 	Transform Symmetry	Transformar simetría
 

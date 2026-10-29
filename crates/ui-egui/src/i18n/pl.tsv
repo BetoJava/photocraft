@@ -3536,8 +3536,7 @@ cameraRaw	Roughness	Chropowatość
 # Painting symmetry presets.
 	Dual Axis	Podwójna oś
 	Mandala	Mandala
-	Segments	Segmenty
-	Axes	Osie
+	Segment Count	Liczba segmentów
 	Diagonal	Ukośna
 	Transform Symmetry	Przekształć symetrię
 

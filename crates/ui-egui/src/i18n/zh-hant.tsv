@@ -2490,8 +2490,7 @@ fontWeight	Italic	斜體
 # Painting symmetry presets.
 	Dual Axis	雙軸
 	Mandala	曼陀羅
-	Segments	區段
-	Axes	軸
+	Segment Count	區段數
 	Diagonal	對角線
 	Transform Symmetry	變形對稱軸
 
