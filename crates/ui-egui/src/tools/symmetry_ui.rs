@@ -10,7 +10,7 @@ use crate::{
 use egui::{Atom, Key, Stroke, vec2};
 use photocraft_doc::Document;
 use photocraft_engine::symmetry_cmds::PaintingSymmetry;
-use photocraft_paint::symmetry::{self, PresetSymmetry, SymmetryMode};
+use photocraft_paint::symmetry::{PresetSymmetry, SymmetryMode};
 use serde::Serialize;
 use serde_json::json;
 use std::sync::Arc;
@@ -97,13 +97,13 @@ fn params(p: PresetSymmetry) -> serde_json::Value {
 fn preset_fields(app: &PhotocraftApp, ui: &mut egui::Ui) -> Option<serde_json::Value> {
     let p = preset(app).filter(|_| crate::menus::is_enabled(app, "paint.setSymmetry"))?;
     let mut next = p;
-    if p.has_axes() {
+    if let Some(range) = p.mode.axes_range() {
+        let (min, max) = (f32::from(*range.start()), f32::from(*range.end()));
         let mut axes = f32::from(p.axes);
         let name = if p.mode == SymmetryMode::Radial { "Segments" } else { "Axes" };
-        let r = widgets::slider_row(ui, name, &mut axes, f32::from(symmetry::MIN_AXES)..=f32::from(symmetry::MAX_AXES), "", None);
-        if r.changed() {
-            // The range keeps the rounded value inside u8 and the accepted line counts.
-            next = next.with_axes(axes.round().clamp(f32::from(symmetry::MIN_AXES), f32::from(symmetry::MAX_AXES)) as u8).unwrap_or(next);
+        if widgets::slider_row(ui, name, &mut axes, min..=max, "", None).changed() {
+            // The range keeps the rounded value inside u8 and the mode's accepted counts.
+            next = next.with_axes(axes.round().clamp(min, max) as u8).unwrap_or(next);
         }
     }
     let mut rotation = p.rotation as f32;

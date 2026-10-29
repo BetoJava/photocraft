@@ -39,12 +39,14 @@ fn presets_validate_atomically_and_leave_document_paths_and_history_untouched() 
         json!({"mode":"dual","rotation":"x"}),
         json!({"mode":"dual","rotation":null}),
         json!({"mode":"mandala","axes":1}),
-        json!({"mode":"mandala","axes":17}),
+        json!({"mode":"mandala","axes":2}),
+        json!({"mode":"mandala","axes":11}),
         json!({"mode":"mandala","axes":-5}),
         json!({"mode":"mandala","axes":5.5}),
         json!({"mode":"mandala","axes":"5"}),
         json!({"mode":"mandala","axes":256}),
         json!({"mode":"radial","axes":1}),
+        json!({"mode":"radial","axes":13}),
         json!({"mode":"radial","axes":"6"}),
     ] {
         assert!(s.execute("paint.setSymmetry", bad).is_err());
@@ -206,7 +208,7 @@ fn mandala_axes_round_trip_through_params_and_inspect_and_paint_every_copy() {
     s.execute("paint.setSymmetry", json!({"mode":"vertical"})).unwrap();
     assert!(crate::inspect::document(s.active().unwrap())["symmetry"].get("axes").is_none());
     s.execute("paint.setSymmetry", json!({"mode":"mandala","center":[40,30]})).unwrap();
-    assert_eq!(s.active().unwrap().symmetry.as_ref().unwrap().preset().unwrap().axes, symmetry::DEFAULT_AXES);
+    assert_eq!(s.active().unwrap().symmetry.as_ref().unwrap().preset().unwrap().axes, 3, "Photoshop's default");
     s.execute("paint.setSymmetry", json!({"mode":"mandala","axes":7,"center":[40,30],"rotation":20})).unwrap();
     s.execute("paint.stroke", json!({"points":[[52,30]],"size":3,"hardness":1.0,"color":"#000000"})).unwrap();
     let p = s.active().unwrap().symmetry.as_ref().unwrap().preset().unwrap();

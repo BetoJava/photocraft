@@ -2,13 +2,15 @@
 
 use crate::StrokePoint;
 use serde::{Deserialize, Serialize};
+use std::ops::RangeInclusive;
 
 pub const MAX_COORDINATE: f64 = 1_000_000.0;
-/// Mandala line / Radial segment count bounds: fewer than two is plain mirroring (or no copy),
-/// and every line costs two render passes per stroke.
-pub const MIN_AXES: u8 = 2;
-pub const MAX_AXES: u8 = 16;
-pub const DEFAULT_AXES: u8 = 5;
+/// Photoshop's Mandala line count bounds and default (checked in Photoshop 2026).
+pub const MANDALA_AXES: RangeInclusive<u8> = 3..=10;
+pub const MANDALA_DEFAULT_AXES: u8 = 3;
+/// Photoshop's Radial segment count bounds and default (checked in Photoshop 2026).
+pub const RADIAL_SEGMENTS: RangeInclusive<u8> = 2..=12;
+pub const RADIAL_DEFAULT_SEGMENTS: u8 = 5;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -39,6 +41,14 @@ impl SymmetryMode {
     pub fn from_id(id: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|m| m.id() == id)
     }
+    /// The Mandala line or Radial segment counts the user may pick; `None` for a fixed count.
+    pub fn axes_range(self) -> Option<RangeInclusive<u8>> {
+        match self {
+            Self::Mandala => Some(MANDALA_AXES),
+            Self::Radial => Some(RADIAL_SEGMENTS),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -47,8 +57,8 @@ pub struct PresetSymmetry {
     pub center: [f64; 2],
     /// Clockwise degrees relative to the mode's initial direction (document Y points down).
     pub rotation: f64,
-    /// Mirror line count, or Radial's segment count: fixed by the mode except for Mandala and
-    /// Radial (MIN_AXES..=MAX_AXES).
+    /// Mirror line count, or Radial's segment count: fixed by the mode except for Mandala
+    /// (MANDALA_AXES) and Radial (RADIAL_SEGMENTS).
     pub axes: u8,
 }
 
@@ -59,22 +69,23 @@ impl PresetSymmetry {
         }
         let axes = match mode {
             SymmetryMode::Dual => 2,
-            SymmetryMode::Mandala | SymmetryMode::Radial => DEFAULT_AXES,
+            SymmetryMode::Mandala => MANDALA_DEFAULT_AXES,
+            SymmetryMode::Radial => RADIAL_DEFAULT_SEGMENTS,
             _ => 1,
         };
         Some(Self { mode, center, rotation: rotation.rem_euclid(360.0), axes })
     }
     /// Whether the line or segment count is the user's choice (Mandala, Radial).
     pub fn has_axes(self) -> bool {
-        matches!(self.mode, SymmetryMode::Mandala | SymmetryMode::Radial)
+        self.mode.axes_range().is_some()
     }
     /// Set the Mandala line or Radial segment count; `None` when out of range. Other modes keep
     /// their fixed count.
     pub fn with_axes(self, axes: u8) -> Option<Self> {
-        match self.mode {
-            SymmetryMode::Mandala | SymmetryMode::Radial if (MIN_AXES..=MAX_AXES).contains(&axes) => Some(Self { axes, ..self }),
-            SymmetryMode::Mandala | SymmetryMode::Radial => None,
-            _ => Some(self),
+        match self.mode.axes_range() {
+            Some(range) if range.contains(&axes) => Some(Self { axes, ..self }),
+            Some(_) => None,
+            None => Some(self),
         }
     }
     /// Axis directions; for Radial, the spokes' directions from the centre, the first pointing up.
@@ -243,26 +254,21 @@ mod tests {
         for (k, copy) in copies.iter().skip(5).enumerate() {
             assert!(close([copy[0].x, copy[0].y], at(theta + (72.0 * (k + 1) as f64).to_radians())), "rotation {}", k + 1);
         }
-        let two = PresetSymmetry::new(SymmetryMode::Mandala, c, 0.0).unwrap().with_axes(2).unwrap().reflected_passes(&[p]);
-        let dual = PresetSymmetry::new(SymmetryMode::Dual, c, 0.0).unwrap().reflected_passes(&[p]);
-        for (a, b) in two.iter().zip(&dual) {
-            assert!(close([a[0].x, a[0].y], [b[0].x, b[0].y]), "a two-line mandala is the dual-axis preset");
-        }
     }
     #[test]
     fn mandala_axes_are_validated_and_rotation_turns_every_line() {
         let base = PresetSymmetry::new(SymmetryMode::Mandala, [50.0, 40.0], 0.0).unwrap();
-        assert_eq!(base.axes, DEFAULT_AXES);
-        for bad in [0, 1, MAX_AXES + 1, u8::MAX] {
+        assert_eq!(base.axes, 3, "Photoshop's default");
+        for bad in [0, 1, 2, 11, u8::MAX] {
             assert!(base.with_axes(bad).is_none());
         }
-        for n in MIN_AXES..=12 {
+        for n in 3..=10 {
             let s = base.with_axes(n).unwrap();
             assert_eq!((s.directions().len(), s.reflected_passes(&[StrokePoint::new(1.0, 2.0, 1.0)]).len()), (usize::from(n), 2 * usize::from(n) - 1));
         }
         assert_eq!(PresetSymmetry::new(SymmetryMode::Vertical, [0.0, 0.0], 0.0).unwrap().with_axes(9).unwrap().axes, 1);
-        let turned = PresetSymmetry::new(SymmetryMode::Mandala, [50.0, 40.0], 10.0).unwrap();
-        for (a, b) in base.directions().into_iter().zip(turned.directions()) {
+        let turned = PresetSymmetry::new(SymmetryMode::Mandala, [50.0, 40.0], 10.0).unwrap().with_axes(5).unwrap();
+        for (a, b) in base.with_axes(5).unwrap().directions().into_iter().zip(turned.directions()) {
             let angle = (a[0] * b[1] - a[1] * b[0]).atan2(a[0] * b[0] + a[1] * b[1]).to_degrees();
             assert!((angle - 10.0).abs() < 1e-9, "rotation turns each line by the same angle: {angle}");
         }
@@ -295,7 +301,7 @@ mod tests {
     fn radial_turns_copies_without_reflecting_and_draws_rays() {
         let c = [20.0, 30.0];
         let s = PresetSymmetry::new(SymmetryMode::Radial, c, 0.0).unwrap();
-        assert_eq!((s.axes, s.mirror_count()), (DEFAULT_AXES, 4));
+        assert_eq!((s.axes, s.mirror_count()), (5, 4), "Photoshop's default");
         let p = StrokePoint { x: 27.0, y: 21.0, pressure: 0.6, tilt_x: 9.0, ..Default::default() };
         let (r, theta) = ((p.x - c[0]).hypot(p.y - c[1]), (p.y - c[1]).atan2(p.x - c[0]));
         let copies = s.reflected_passes(&[p]);
@@ -311,7 +317,8 @@ mod tests {
         for copy in s.with_axes(7).unwrap().reflected_passes(&pair) {
             assert!((cross(&copy[0], &copy[1]) - cross(&pair[0], &pair[1])).abs() < 1e-9);
         }
-        assert!(s.with_axes(1).is_none() && s.with_axes(MAX_AXES + 1).is_none());
+        assert!(s.with_axes(1).is_none() && s.with_axes(13).is_none());
+        assert_eq!((s.with_axes(2).unwrap().axes, s.with_axes(12).unwrap().axes), (2, 12));
         let size = [100.0, 80.0];
         for rotation in [0.0, 25.0, 300.0] {
             let s = PresetSymmetry::new(SymmetryMode::Radial, [50.0, 40.0], rotation).unwrap().with_axes(6).unwrap();

@@ -102,9 +102,11 @@ impl PaintingSymmetry {
 fn set_preset(s: &mut Session, p: &Value) -> Result<Value> {
     let fail = || {
         EngineError::Other(format!(
-            "symmetry requires a valid mode, a finite [x,y] centre, a finite rotation and {}..={} mandala axes",
-            symmetry::MIN_AXES,
-            symmetry::MAX_AXES
+            "symmetry requires a valid mode, a finite [x,y] centre, a finite rotation, and {}..={} mandala axes or {}..={} radial segments",
+            symmetry::MANDALA_AXES.start(),
+            symmetry::MANDALA_AXES.end(),
+            symmetry::RADIAL_SEGMENTS.start(),
+            symmetry::RADIAL_SEGMENTS.end()
         ))
     };
     let st = s.active().ok_or(EngineError::NoDocument)?;
@@ -125,7 +127,7 @@ fn set_preset(s: &mut Session, p: &Value) -> Result<Value> {
         // Re-picking Mandala or Radial without a count keeps the document's current one.
         let current = st.symmetry.as_ref().and_then(PaintingSymmetry::preset).filter(|c| c.mode == mode).map(|c| c.axes);
         let axes = match p.get("axes") {
-            None => current.unwrap_or(symmetry::DEFAULT_AXES),
+            None => current.unwrap_or(preset.axes),
             Some(v) => v.as_u64().and_then(|n| u8::try_from(n).ok()).ok_or_else(fail)?,
         };
         preset = preset.with_axes(axes).ok_or_else(fail)?;
@@ -245,7 +247,7 @@ pub fn specs() -> Vec<CommandSpec> {
             label: "Set Painting Symmetry",
             menu: &[],
             shortcut: None,
-            params: r#"{"mode":"vertical|horizontal|dual|diagonal|radial|mandala","center":[x,y]?,"rotation":degrees=0,"axes":2..16=5} — axes: mandala mirror lines (2 × axes copies) or radial segments (axes turned copies)"#,
+            params: r#"{"mode":"vertical|horizontal|dual|diagonal|radial|mandala","center":[x,y]?,"rotation":degrees=0,"axes":mandala 3..10=3, radial 2..12=5} — axes: mandala mirror lines (2 × axes copies) or radial segments (axes turned copies)"#,
             enabled: |s| s.active().map(|_| ()).ok_or_else(|| "no document open".into()),
             run: set_preset,
             journal: true,
